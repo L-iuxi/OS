@@ -113,33 +113,34 @@ in al, 0x92
 or al, 0x02
 out 0x92, al
 
-;打印1
-;mov byte [loadermsg], '1'
-;mov sp, LOADER_BASE_ADDR
-;mov bp, loadermsg
-;mov cx,1
-;mov ax,0x1301
-;mov bx,0x001F       ; 页0, 蓝底粉红字
-;mov dx,0x0000       ; 行0，列0
-;int 0x10
+                                                ;打印1，调试
+                                                ;mov byte [loadermsg], '1'
+                                                ;mov sp, LOADER_BASE_ADDR
+                                                ;mov bp, loadermsg
+                                                ;mov cx,1
+                                                ;mov ax,0x1301
+                                                ;mov bx,0x001F       ; 页0, 蓝底粉红字
+                                                ;mov dx,0x0000       ; 行0，列0
+                                                ;int 0x10
 ;----------------- 加载 GDT ----------------
 mov dword [gdt_ptr+2], GDT_BASE
 mov word  [gdt_ptr],   GDT_LIMIT
 
 lgdt [gdt_ptr]
-;mov byte [loadermsg], '2'
-;mov bp, loadermsg
-;mov cx,1
-;mov dx,0x0001       ; 行0，列1
-;int 0x10
+                                                ;打印2
+                                                ;mov byte [loadermsg], '2'
+                                                ;mov bp, loadermsg
+                                                ;mov cx,1
+                                                ;mov dx,0x0001       ; 行0，列1
+                                                ;int 0x10
 
-;----------------- CR0 第 0 位置 1 ----------------
+;----------------- CR0 第 0 位置 1 ---------------- 
 mov eax, cr0
 or eax, 1
 mov cr0, eax
-
-;mov byte [gs:4], '3'
-;mov byte [gs:5], 0x1F
+                                                ;打印3
+                                                ;mov byte [gs:4], '3'
+                                                ;mov byte [gs:5], 0x1F
 
 jmp SELECTOR_CODE:p_mode_start ; 刷新流水线
 
@@ -153,28 +154,130 @@ p_mode_start:
     mov es, ax
     mov ss, ax
     mov esp, LOADER_STACK_TOP
+                                        ;call print_total_mem 查看内存大小函数
     mov ax, SELECTOR_VIDEO
     mov gs, ax
-    mov byte [gs:0xA0], 'G'
-    jmp $
+                                        ;mov byte [gs:0xA0], 'G'
+                                        ;jmp $
+                                        ;这里的显存有问题，gs寄存器指向的位置不对导致无法通过偏移打印
 
 
-;call setup_page
+
+call setup_page
 
 
 ;sgdt [gdt_ptr]
-;;mov ebx,[gdt_ptr + 2]
-;or dword [ebx + 0x18 +4],0xc0000000
+mov ebx,[gdt_ptr + 2]
+or dword [ebx + 0x18 +4],0xc0000000
 
-;add dword [gdt_ptr + 2],0xc0000000
+add dword [gdt_ptr + 2],0xc0000000
 
-;add esp,0xc0000000
+add esp,0xc0000000
 
-;mov eax,PAGE_DIR_TABLE_POS
-;mov cr3,eax
-;lgdt [gdt_ptr]
-;mov byte [gs:160], 'V'
+mov eax,PAGE_DIR_TABLE_POS
+mov cr3,eax
 
-;jmp $
+mov eax, cr0                           ;打开cr0的pg位
+or eax, 0x80000000
+mov cr0,eax
+
+lgdt [gdt_ptr]
+
+mov byte [gs:160], 'V'
+;mov byte [0xB8000], 'O'
+;mov byte [0xB8001], 0x1F
+;mov byte [0xB8002], 'K'
+;mov byte [0xB8003], 0x1F
+
+jmp $
+
+                                                ;以下为对内存大小的调试
+                                                ;----------------------------------------
+                                                ; 函数: print_total_mem
+                                                ; 功能: 将 total_mem_bytes 转为十进制字符并打印到屏幕
+                                                ; 入口: 无
+                                                ;----------------------------------------
+                                                print_total_mem:
+                                                mov eax,[total_mem_bytes]  ; eax = 内存字节数
+                                                mov ecx,0                   ; 字符计数
+                                                mov esi,0                   ; 用于保存字符个数
+
+                                                cmp eax,0
+                                                jne .convert_loop
+                                                ; 如果内存为0
+                                                mov dl,'0'
+                                                mov [str_buffer],dl
+                                                mov ecx,1
+                                                jmp .print_chars
+
+                                                .convert_loop:
+                                                xor edx,edx
+                                                mov ebx,10
+                                                div ebx                     ; eax/10，余数在dl
+                                                add dl,'0'                  ; 转为ASCII
+                                                push dx
+                                                inc esi
+                                                test eax,eax
+                                                jnz .convert_loop
+
+                                                .print_chars:
+                                                mov edi,0xB8000             ; 显存地址，行0列0
+                                                mov bx,0x0F                 ; 属性: 白底黑字
+                                                .print_loop:
+                                                pop dx
+                                                mov [edi],dl                ; 字符
+                                                inc edi
+                                                mov [edi],bl                ; 属性
+                                                inc edi
+                                                dec esi
+                                                jnz .print_loop
+                                                ret
+
+                                                str_buffer times 12 db 0        ; 保存数字字符串，最大支持 12 位
+                                                ;以上函数用于调试打印查看内存大小，打印结果为33554432，转换后为32MB
 
 
+setup_page:                                     ;创建页目录及页表
+        mov ecx,4096
+        mov esi,0
+
+.clear_page_dir:
+        mov byte [PAGE_DIR_TABLE_POS + esi],0
+        inc esi
+        loop .clear_page_dir
+
+.create_pde:                                    ;初始化页目录表，0号项与768号项指向同一页表
+        mov eax,PAGE_DIR_TABLE_POS
+        add eax,0x1000
+        mov ebx,eax
+
+        or eax,PG_US_U | PG_RW_W | PG_P
+        mov [PAGE_DIR_TABLE_POS + 0x0],eax
+        mov [PAGE_DIR_TABLE_POS + 0xc00],eax
+        sub eax,0x1000
+        mov [PAGE_DIR_TABLE_POS + 4092],eax     ;使最后一个页目录项指向页目录表自己的地址
+        
+        mov eax,0
+        mov ecx,256                             ;初始化第一个页表 
+        mov esi,0
+        mov edx,PG_US_U | PG_RW_W | PG_P
+.create_pte:
+        mov [ebx+esi*4],ebx
+        add edx,4096
+        inc esi
+        loop .create_pte
+
+        mov eax,PAGE_DIR_TABLE_POS               ;初始化769号——1022号
+        add eax,0x2000
+        or eax,PG_US_U | PG_RW_W | PG_P
+        mov ebx,PAGE_DIR_TABLE_POS
+        mov ecx,254
+        mov esi,769
+.create_kernel_pde:
+        mov [ebx+esi*4],eax                     ;设置页目录表项
+         add eax,0x1000
+        inc esi
+       
+        loop .create_kernel_pde                  ;循环设定254个页目录表项
+        
+        ret
