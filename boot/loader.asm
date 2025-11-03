@@ -1,283 +1,175 @@
 %include "boot.inc"
-
-;本代码现在实现的内容有 1.初始化gdt 2.查看内存 3.打开保护模式
 section loader vstart=LOADER_BASE_ADDR
 LOADER_STACK_TOP equ LOADER_BASE_ADDR
-jmp loader_start
+    jmp loader_start					                ;loader一进来是一大堆GDT段描述符数据，无法执行，所以要跳过
+   
+                                                        
+GDT_BASE:                                               ;构建gdt及其内部的描述符
+    dd 0x00000000 
+	dd 0x00000000
 
-                                        ; 构建 gdt 及其内部的描述符
-GDT_BASE: 
-        dd 0x00000000
-        dd 0x00000000
+CODE_DESC:  
+    dd 0x0000FFFF 
+	dd DESC_CODE_HIGH4
 
-CODE_DESC: 
-        dd 0x0000FFFF
-        dd DESC_CODE_HIGH4
-
-DATA_STACK_DESC:
-        dd 0x0000FFFF
-        dd DESC_DATA_HIGH4
+DATA_STACK_DESC:  
+    dd 0x0000FFFF
+    dd DESC_DATA_HIGH4
 
 VIDEO_DESC: 
-        dd  0x0000B800    ; limit=(0xbffff-0xb8000)/4k=0x7
-        dd DESC_VIDEO_HIGH4          ; 此时 dpl 为 0
+    dd 0x80000007	                                    ;limit=(0xbffff-0xb8000)/4k=0x7
+    dd DESC_VIDEO_HIGH4                                 ; 此时dpl已改为0
 
-        GDT_SIZE equ $ - GDT_BASE
-        GDT_LIMIT equ GDT_SIZE - 1
-        times 60 dq 0                           ; 此处预留 60 个描述符的空位
-
-        SELECTOR_CODE equ (0x0001<<3) + TI_GDT + RPL0
-        SELECTOR_DATA equ (0x0002<<3) + TI_GDT + RPL0
-        SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0
-
-total_mem_bytes dd 0                    ;用于保存计算出来的内存容量
-
-                                        ; 以下是 gdt 的指针，前 2 字节是 gdt 界限，后 4 字节是 gdt 起始地址
-gdt_ptr dw GDT_SIZE - 1
-        dd GDT_BASE
-
-ards_buf times 244 db 0                 ;人工对齐
-ards_nr dw 0                            ;用于记录ards结构体数量
-
+    GDT_SIZE equ $ - GDT_BASE
+    GDT_LIMIT equ GDT_SIZE - 1 
+    times 60 dq 0					                    ; 此处预留60个描述符的空间
+    SELECTOR_CODE equ (0x0001<<3) + TI_GDT + RPL0       ; 相当于(CODE_DESC - GDT_BASE)/8 + TI_GDT + RPL0
+    SELECTOR_DATA equ (0x0002<<3) + TI_GDT + RPL0	    ; 同上
+    SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0	    ; 同上 
+gdt_ptr dw GDT_LIMIT                                    ;定义加载进入GDTR的数据，前2字节是gdt界限，后4字节是gdt起始地址，
+	    dd  GDT_BASE
 ;loadermsg db '2 loader in real.'
+total_mem_bytes dd 0
 
+ards_buf times 244 db 0
+ards_nr dw 0
 loader_start:
-                                        ;------------------------------------------------------------
-                                        ; INT 0x10 功能号:0x13 功能描述:打印字符串
-                                        ;------------------------------------------------------------
-                                        ; 输入:
-                                        ; AH 子功能号=13H
-                                        ; BH = 页码
-                                        ; BL = 属性(若 AL=00H 或 01H)
-                                        ; CX=字符串长度
-                                        ; (DH, DL)=坐标(行, 列)
-                                        ; ES:BP=字符串地址
-                                        ; AL=显示输出方式
-                                        ; 0—字符串中只含显示字符，其显示属性在 BL 中 显示后，光标位置不变
-                                        ; 1—字符串中只含显示字符，其显示属性在 BL 中 显示后，光标位置改变
-                                        ; 2—字符串中含显示字符和显示属性。显示后，光标位置不变
-                                        ; 3—字符串中含显示字符和显示属性。显示后，光标位置改变
-                                        ; 无返回值
+mov sp,LOADER_BASE_ADDR
+                                         
 
-                                        ;mov sp, LOADER_BASE_ADDR
-                                        ;mov bp, loadermsg ; ES:BP = 字符串地址
-                                        ;mov cx, 17        ; CX = 字符串长度
-                                        ;mov ax, 0x1301    ; AH = 13, AL = 01h
-                                        ;mov bx, 0x001f    ; 页号为 0(BH=0) 蓝底粉红字(BL=1fh)
-                                        ;mov dx, 0x1800
-                                        ;int 0x10          ; 10h 号中断
 
-                                        ;========int 15 h eax = 0000E820h,edx = 534D4150h ('SMAP')获取内存布局
+xor ebx, ebx		                                ;第一次调用时，ebx值要为0
+    mov edx, 0x534d4150	                                ;edx只赋值一次，循环体中不会改变
+    mov di, ards_buf	                                ;ards结构缓冲区
+    .e820_mem_get_loop:	                                ;循环获取每个ARDS内存范围描述结构
+    mov eax, 0x0000e820	                                ;执行int 0x15后,eax值变为0x534d4150,所以每次执行int前都要更新为子功能号。
+    mov ecx, 20		                                    ;ARDS地址范围描述符结构大小是20字节
+    int 0x15
+    add di, cx		                                    ;使di增加20字节指向缓冲区中新的ARDS结构位置
+    inc word [ards_nr]	                                ;记录ARDS数量
+    cmp ebx, 0		                                    ;若ebx为0且cf不为1,这说明ards全部返回，当前已是最后一个
+    jnz .e820_mem_get_loop
 
-xor ebx,ebx                             ;寄存器自异或以清0，第一次调用时，ebx要为0
-mov edx,0x534d4150
-mov di,ards_buf
-.e820_mem_get_loop:                     ;循环获取每个ards内存范围描述结构
-        mov eax,0x0000e820
-        mov ecx,20
-        int 0x15
-        add di,cx
-        inc word [ards_nr]              ;记录ards数量
-        cmp ebx,0                       ;若ebx为0,cf不为1,说明ards全部返回
-        jnz .e820_mem_get_loop
-
-        mov cx,[ards_nr]
-        mov ebx,ards_buf
-        xor edx,edx
-.find_max_mem_area:
-        mov eax,[ebx]
-        add eax,[ebx+8]
-        add ebx,20
-        cmp edx,eax                     ;冒泡排序，找出最大，edx寄存器是最大内存容量
-        jge .next_ards                  ;若大于等于则下一次循环，否则不会执行此条指令
-        mov edx,eax                     ;edx为总内存大小
-
+                                                        ;在所有ards结构中，找出(base_add_low + length_low)的最大值，即内存的容量。
+    mov cx, [ards_nr]	                                ;遍历每一个ARDS结构体,循环次数是ARDS的数量
+    mov ebx, ards_buf 
+    xor edx, edx		                                ;edx为最大的内存容量,在此先清0
+.find_max_mem_area:	                                    ;无须判断type是否为1,最大的内存块一定是可被使用
+    mov eax, [ebx]	                                    ;base_add_low
+    add eax, [ebx+8]	                                ;length_low
+    add ebx, 20		                                    ;指向缓冲区中下一个ARDS结构
+    cmp edx, eax		                                ;冒泡排序，找出最大,edx寄存器始终是最大的内存容量
+    jge .next_ards
+    mov edx, eax		                                ;edx为总内存大小
 .next_ards:
-        loop .find_max_mem_area
+    loop .find_max_mem_area
 
-        mov [total_mem_bytes],edx
+    mov [total_mem_bytes], edx	
 
-
-; --------------------
-; 准备进入保护模式
-; --------------------
-; 1. 打开 A20
-; 2. 加载 GDT
-; 3. 将 CR0 的 PE 位置 1
+                                                    
+                                                        ;-----------------   准备进入保护模式   ------------------------------------------
+                                                        ;1 打开A20
+                                                        ;2 加载gdt
+                                                        ;3 将cr0的pe位置1
 
 
+                                                        ;-----------------  打开A20  ----------------
+    in al, 0x92
+    or al, 0000_0010B
+    out 0x92,al
+
+                                                        ;-----------------  加载GDT  ----------------
+    lgdt [gdt_ptr]
 
 
-;----------------- 打开 A20 ----------------
-in al, 0x92
-or al, 0x02
-out 0x92, al
+                                                        ;-----------------  cr0第0位置1  ----------------
+    mov eax,cr0
+    or eax,0x00000001
+    mov cr0,eax
 
-                                                ;打印1，调试
-                                                ;mov byte [loadermsg], '1'
-                                                ;mov sp, LOADER_BASE_ADDR
-                                                ;mov bp, loadermsg
-                                                ;mov cx,1
-                                                ;mov ax,0x1301
-                                                ;mov bx,0x001F       ; 页0, 蓝底粉红字
-                                                ;mov dx,0x0000       ; 行0，列0
-                                                ;int 0x10
-;----------------- 加载 GDT ----------------
-mov dword [gdt_ptr+2], GDT_BASE
-mov word  [gdt_ptr],   GDT_LIMIT
-
-lgdt [gdt_ptr]
-                                                ;打印2
-                                                ;mov byte [loadermsg], '2'
-                                                ;mov bp, loadermsg
-                                                ;mov cx,1
-                                                ;mov dx,0x0001       ; 行0，列1
-                                                ;int 0x10
-
-;----------------- CR0 第 0 位置 1 ---------------- 
-mov eax, cr0
-or eax, 1
-mov cr0, eax
-                                                ;打印3
-                                                ;mov byte [gs:4], '3'
-                                                ;mov byte [gs:5], 0x1F
-
-jmp SELECTOR_CODE:p_mode_start ; 刷新流水线
-
-.error_hlt:
- hlt
+                                                        ;jmp dword SELECTOR_CODE:p_mode_start	    
+    jmp  SELECTOR_CODE:p_mode_start	                    ; 刷新流水线，避免分支预测的影响,这种cpu优化策略，最怕jmp跳转，
+					                                    ; 这将导致之前做的预测失效，从而起到了刷新的作用。
 
 [bits 32]
 p_mode_start:
-    mov ax, SELECTOR_DATA
-    mov ds, ax
-    mov es, ax
-    mov ss, ax
-    mov esp, LOADER_STACK_TOP
-                                        ;call print_total_mem 查看内存大小函数
-    mov ax, SELECTOR_VIDEO
-    mov gs, ax
-                                        ;mov byte [gs:0xA0], 'G'
-                                        ;jmp $
-                                        ;这里的显存有问题，gs寄存器指向的位置不对导致无法通过偏移打印
+    mov ax,SELECTOR_DATA
+    mov ds,ax
+    mov es,ax
+    mov ss,ax
+    mov esp,LOADER_STACK_TOP
+    mov ax,SELECTOR_VIDEO
+    mov gs,ax
+
+    mov byte [gs:160], 'P'
+
+    call setup_page                                     ;创建页目录表的函数,我们的页目录表必须放在1M开始的位置，所以必须在开启保护模式后运行
+
+                                                        ;以下两句是将gdt描述符中视频段描述符中的段基址+0xc0000000
+    mov ebx, [gdt_ptr + 2]                              ;ebx中存着GDT_BASE
+    or dword [ebx + 0x18 + 4], 0xc0000000               ;视频段是第3个段描述符,每个描述符是8字节,故0x18 = 24，然后+4，是取出了视频段段描述符的高4字节。然后or操作，段基址最高位+c
+                                           
+    add dword [gdt_ptr + 2], 0xc0000000                 ;将gdt的基址加上0xc0000000使其成为内核所在的高地址
+
+    add esp, 0xc0000000                                 ; 将栈指针同样映射到内核地址
+
+    mov eax, PAGE_DIR_TABLE_POS                         ; 把页目录地址赋给cr3
+    mov cr3, eax
+                                                        
+    mov eax, cr0                                        ; 打开cr0的pg位(第31位)
+    or eax, 0x80000000  
+    mov cr0, eax
+                                                      
+    lgdt [gdt_ptr]                                      ;在开启分页后,用gdt新的地址重新加载
+
+    mov byte [gs:160], 'V'                              ;视频段段基址已经被更新,用字符v表示virtual addr
+
+    jmp $
+    
 
 
-
-call setup_page
-
-
-;sgdt [gdt_ptr]
-mov ebx,[gdt_ptr + 2]
-or dword [ebx + 0x18 +4],0xc0000000
-
-add dword [gdt_ptr + 2],0xc0000000
-
-add esp,0xc0000000
-
-mov eax,PAGE_DIR_TABLE_POS
-mov cr3,eax
-
-mov eax, cr0                           ;打开cr0的pg位
-or eax, 0x80000000
-mov cr0,eax
-
-lgdt [gdt_ptr]
-
-mov byte [gs:160], 'V'
-;mov byte [0xB8000], 'O'
-;mov byte [0xB8001], 0x1F
-;mov byte [0xB8002], 'K'
-;mov byte [0xB8003], 0x1F
-
-jmp $
-
-                                                ;以下为对内存大小的调试
-                                                ;----------------------------------------
-                                                ; 函数: print_total_mem
-                                                ; 功能: 将 total_mem_bytes 转为十进制字符并打印到屏幕
-                                                ; 入口: 无
-                                                ;----------------------------------------
-                                                print_total_mem:
-                                                mov eax,[total_mem_bytes]  ; eax = 内存字节数
-                                                mov ecx,0                   ; 字符计数
-                                                mov esi,0                   ; 用于保存字符个数
-
-                                                cmp eax,0
-                                                jne .convert_loop
-                                                ; 如果内存为0
-                                                mov dl,'0'
-                                                mov [str_buffer],dl
-                                                mov ecx,1
-                                                jmp .print_chars
-
-                                                .convert_loop:
-                                                xor edx,edx
-                                                mov ebx,10
-                                                div ebx                     ; eax/10，余数在dl
-                                                add dl,'0'                  ; 转为ASCII
-                                                push dx
-                                                inc esi
-                                                test eax,eax
-                                                jnz .convert_loop
-
-                                                .print_chars:
-                                                mov edi,0xB8000             ; 显存地址，行0列0
-                                                mov bx,0x0F                 ; 属性: 白底黑字
-                                                .print_loop:
-                                                pop dx
-                                                mov [edi],dl                ; 字符
-                                                inc edi
-                                                mov [edi],bl                ; 属性
-                                                inc edi
-                                                dec esi
-                                                jnz .print_loop
-                                                ret
-
-                                                str_buffer times 12 db 0        ; 保存数字字符串，最大支持 12 位
-                                                ;以上函数用于调试打印查看内存大小，打印结果为33554432，转换后为32MB
-
-
-setup_page:                                     ;创建页目录及页表
-        mov ecx,4096
-        mov esi,0
-
+setup_page:                                             ;------------------------------------------   创建页目录及页表  -------------------------------------
+                                                        ;----------------以下6行是将1M开始的4KB置为0，将页目录表初始化
+    mov ecx, 4096                                       ;创建4096个byte 0，循环4096次
+    mov esi, 0                                          ;用esi来作为偏移量寻址
 .clear_page_dir:
-        mov byte [PAGE_DIR_TABLE_POS + esi],0
-        inc esi
-        loop .clear_page_dir
+    mov byte [PAGE_DIR_TABLE_POS + esi], 0
+    inc esi
+    loop .clear_page_dir
 
-.create_pde:                                    ;初始化页目录表，0号项与768号项指向同一页表
-        mov eax,PAGE_DIR_TABLE_POS
-        add eax,0x1000
-        mov ebx,eax
+                                                        ; ----------------初始化页目录表，让0号项与768号指向同一个页表，该页表管理从0开始4M的空间
+.create_pde:				                            ;一个页目录表项可表示4MB内存,这样0xc03fffff以下的地址和0x003fffff以下的地址都指向相同的页表，这是为将地址映射为内核地址做准备
+    mov eax, PAGE_DIR_TABLE_POS                         ; eax中存着页目录表的位置
+    add eax, 0x1000 			                        ; 在页目录表位置的基础上+4K（页目录表的大小），现在eax中第一个页表的起始位置
+    mov ebx, eax				                        ; 此处为ebx赋值，现在ebx存着第一个页表的起始位置
+    or eax, PG_US_U | PG_RW_W | PG_P	                ; 页目录项的属性RW和P位为1,US为1,表示用户属性,所有特权级别都可以访问.
+                                                        ; 现在eax中的值符合一个页目录项的要求了，高20位是一个指向第一个页表的4K整数倍地址，低12位是相关属性设置
+    mov [PAGE_DIR_TABLE_POS + 0x0], eax                 ; 页目录表0号项写入第一个页表的位置(0x101000)及属性(7)
+    mov [PAGE_DIR_TABLE_POS + 0xc00], eax               ; 页目录表768号项写入第一个页表的位置(0x101000)及属性(7)
+					                                    
+    sub eax, 0x1000                                     ;----------------- 使最后一个目录项指向页目录表自己的地址，为的是将来动态操作页表做准备
+    mov [PAGE_DIR_TABLE_POS + 4092], eax	            ;属性包含PG_US_U是为了将来init进程（运行在用户空间）访问这个页目录表项
+                                                        
+    mov ecx, 256				                        ; -----------------初始化第一个页表，因为我们的操作系统不会超过1M，所以只用初始化256项
+    mov esi, 0                                          ; esi来做寻址页表项的偏移量
+    xor edx, edx                                        ;将edx置为0，现在edx指向0地址
+    mov edx, PG_US_U | PG_RW_W | PG_P	                ; 属性为7,US=1,RW=1,P=1
+.create_pte:				                            ; 创建Page Table Entry
+    mov [ebx+esi*4],edx			                        ; 此时的ebx已经在上面通过eax赋值为0x101000,也就是第一个页表的地址 
+    add edx,4096                                        ; edx指向下一个4kb空间，且已经设定好了属性，故edx中是一个完整指向下一个4kb物理空间的页表表项
+    inc esi                                             ; 寻址页表项的偏移量+1
+    loop .create_pte                                    ;循环设定第一个页表的256项
 
-        or eax,PG_US_U | PG_RW_W | PG_P
-        mov [PAGE_DIR_TABLE_POS + 0x0],eax
-        mov [PAGE_DIR_TABLE_POS + 0xc00],eax
-        sub eax,0x1000
-        mov [PAGE_DIR_TABLE_POS + 4092],eax     ;使最后一个页目录项指向页目录表自己的地址
-        
-        mov eax,0
-        mov ecx,256                             ;初始化第一个页表 
-        mov esi,0
-        mov edx,PG_US_U | PG_RW_W | PG_P
-.create_pte:
-        mov [ebx+esi*4],ebx
-        add edx,4096
-        inc esi
-        loop .create_pte
-
-        mov eax,PAGE_DIR_TABLE_POS               ;初始化769号——1022号
-        add eax,0x2000
-        or eax,PG_US_U | PG_RW_W | PG_P
-        mov ebx,PAGE_DIR_TABLE_POS
-        mov ecx,254
-        mov esi,769
+                                                        ; -------------------初始化页目录表769号-1022号项，769号项指向第二个页表的地址（此页表紧挨着上面的第一个页表），770号指向第三个，以此类推
+    mov eax, PAGE_DIR_TABLE_POS                         ; eax存页目录表的起始位置
+    add eax, 0x2000 		                            ; 此时eax为第二个页表的位置
+    or eax, PG_US_U | PG_RW_W | PG_P                    ; 设置页目录表项相关属性，US,RW和P位都为1，现在eax中的值是一个完整的指向第二个页表的页目录表项
+    mov ebx, PAGE_DIR_TABLE_POS                         ; ebx现在存着页目录表的起始位置
+    mov ecx, 254			                            ; 要设置254个表项
+    mov esi, 769                                        ; 要设置的页目录表项的偏移起始
 .create_kernel_pde:
-        mov [ebx+esi*4],eax                     ;设置页目录表项
-         add eax,0x1000
-        inc esi
-       
-        loop .create_kernel_pde                  ;循环设定254个页目录表项
-        
-        ret
+    mov [ebx+esi*4], eax                                ; 设置页目录表项
+    inc esi                                             ; 增加要设置的页目录表项的偏移
+    add eax, 0x1000                                     ; eax指向下一个页表的位置，由于之前设定了属性，所以eax是一个完整的指向下一个页表的页目录表项
+    loop .create_kernel_pde                             ; 循环设定254个页目录表项
+    ret
