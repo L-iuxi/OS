@@ -2,6 +2,14 @@
 LOADER_BASE_ADDR equ 0x900 
 LOADER_START_SECTOR equ 0x2
 PAGE_DIR_TABLE_POS equ 0x100000  
+LOADER_STACK_TOP equ LOADER_BASE_ADDR               ;这一条之前是在loader.S中定义，现在搬过来了
+
+PT_NULL equ 0
+
+KERNEL_BIN_BASE_ADDR equ 0x70000                    ;定义内核在内存中的缓冲区，也就是将编译好的内核文件暂时存储在内存中的位置
+KERNEL_START_SECTOR equ 0x9                         ;定义内核在磁盘的起始扇区
+KERNEL_ENTRY_POINT equ 0xc0001500                   ;定义内核可执行代码的入口地址
+
 
                                                     ;--------------   模块化的gdt描述符字段宏-------------
 DESC_G_4K   equ	  1_00000000000000000000000b        ;设置段界限的单位为4KB

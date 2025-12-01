@@ -1,6 +1,5 @@
 %include "boot.inc"
 section loader vstart=LOADER_BASE_ADDR
-LOADER_STACK_TOP equ LOADER_BASE_ADDR
     jmp loader_start					                ;loader一进来是一大堆GDT段描述符数据，无法执行，所以要跳过
    
                                                         
@@ -34,11 +33,11 @@ total_mem_bytes dd 0
 ards_buf times 244 db 0
 ards_nr dw 0
 loader_start:
-mov sp,LOADER_BASE_ADDR
+    mov sp,LOADER_BASE_ADDR
                                          
 
 
-xor ebx, ebx		                                ;第一次调用时，ebx值要为0
+    xor ebx, ebx		                                ;第一次调用时，ebx值要为0
     mov edx, 0x534d4150	                                ;edx只赋值一次，循环体中不会改变
     mov di, ards_buf	                                ;ards结构缓冲区
     .e820_mem_get_loop:	                                ;循环获取每个ARDS内存范围描述结构
@@ -101,7 +100,14 @@ p_mode_start:
     mov ax,SELECTOR_VIDEO
     mov gs,ax
 
-    mov byte [gs:160], 'P'
+    ;mov byte [gs:160], 'P'
+                                                        ;加载内核
+    mov eax,KERNEL_START_SECTOR
+    mov ebx,KERNEL_BIN_BASE_ADDR
+    mov ecx,200
+    call rd_disk_m_32
+
+
 
     call setup_page                                     ;创建页目录表的函数,我们的页目录表必须放在1M开始的位置，所以必须在开启保护模式后运行
 
@@ -122,9 +128,15 @@ p_mode_start:
                                                       
     lgdt [gdt_ptr]                                      ;在开启分页后,用gdt新的地址重新加载
 
-    mov byte [gs:160], 'V'                              ;视频段段基址已经被更新,用字符v表示virtual addr
+jmp SELECTOR_CODE:enter_kernel
 
-    jmp $
+enter_kernel:
+    call kernel_init
+    mov esp,0xc009f000
+    jmp KERNEL_ENTRY_POINT
+                                                        ;mov byte [gs:160], 'V';视频段段基址已经被更新,用字符v表示virtual addr
+
+                                                        ; jmp $
     
 
 
@@ -173,3 +185,101 @@ setup_page:                                             ;-----------------------
     add eax, 0x1000                                     ; eax指向下一个页表的位置，由于之前设定了属性，所以eax是一个完整的指向下一个页表的页目录表项
     loop .create_kernel_pde                             ; 循环设定254个页目录表项
     ret
+
+kernel_init:
+    xor eax,eax
+    xor ebx,ebx
+    xor ecx,ecx
+    xor edx,edx
+
+    mov dx, [KERNEL_BIN_BASE_ADDR + 42]
+
+    mov ebx,[KERNEL_BIN_BASE_ADDR + 28]
+
+    add ebx,KERNEL_BIN_BASE_ADDR
+
+    mov cx,[KERNEL_BIN_BASE_ADDR + 44]
+.each_segment:
+    cmp byte [ebx + 0],PT_NULL
+    je .PTNULL
+
+    push dword [ebx + 16]
+    mov eax,[ebx + 4]
+
+    add eax,KERNEL_BIN_BASE_ADDR
+    push eax
+    push dword [ebx + 8]
+    call mem_cpy
+    add esp,12
+.PTNULL:
+    add ebx,edx
+    loop .each_segment
+    ret
+
+mem_cpy:                                                ;拷贝函数，用于信息在内存中移动
+    cld
+    push ebp
+    mov ebp,esp
+    push ecx
+    mov edi,[ebp + 8]
+    mov esi,[ebp + 12]
+    mov ecx,[ebp + 16]
+    rep movsb                                           ;逐字节拷贝
+
+    pop ecx
+    pop ebp
+    ret
+
+rd_disk_m_32:
+
+mov esi,eax                                             ;备份数据
+mov di,cx
+
+mov dx,0x1f2                                            ;1.选择特定通道的寄存器
+mov al,cl                       
+out dx,al
+
+mov eax,esi             
+
+mov dx,0x1f3                                            ;2.在特定通道寄存器中放入要读取的扇区地址
+out dx,al
+
+mov cl,8                                                ;以下为将lba地址写入dx中的端口，每次写完并右移cx（8位）
+shr eax,cl
+mov dx,0x1f4
+out dx,al
+
+shr eax,cl
+mov dx,0x1f5
+out dx,al
+
+shr eax,cl
+and al,0x0f
+or al,0xe0
+mov dx,0x1f6
+out dx,al
+
+mov dx,0x1f7                                            ;3.向0x1f7写入0x20命令
+mov al,0x20
+out dx,al
+
+not_ready:                                              ;4.检查硬盘状态
+nop                                                     ;空转
+in al,dx                                                ;读取statu寄存器，判断硬盘状态，第四位为1表示准备好了，第七位为一表示忙
+and al,0x88
+cmp al,0x08
+jnz not_ready
+
+mov ax,di                                               ;5.从0x1f0读数据
+mov dx,256                                              ;di存储的是要读取的扇区数
+mul dx
+mov cx,ax
+
+mov dx,0x1f0
+go_on_read:
+in ax,dx
+mov [ebx],ax
+add ebx,2
+
+loop go_on_read
+ret
