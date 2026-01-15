@@ -1,99 +1,124 @@
-                                ;主引导程序
-                                ;----------
+                                    ;���������� 
+                                    ;------------------------------------------------------------
 %include "boot.inc"
- 
-                                ;SECTION MBR vstart=0x7c00
-bits 16
-org 0x7c00
-mov ax, cs
-mov ds, ax
-mov es, ax
-mov ss, ax
-mov fs, ax
-mov sp, 0x7c00
-mov ax, 0xb800
-mov gs, ax
+SECTION MBR vstart=0x7c00         
+    mov ax,cs      
+    mov ds,ax
+    mov es,ax
+    mov ss,ax
+    mov fs,ax
+    mov sp,0x7c00
+    mov ax,0xb800
+    mov gs,ax
 
-mov ax, 0600h
-mov bx, 0700h
-mov cx, 0      
-mov dx, 184fh  
+                                    ; ����
+                                    ;����0x06�Ź��ܣ��Ͼ�ȫ���У����������
+                                    ; -----------------------------------------------------------
+                                    ;INT 0x10   ���ܺ�:0x06	   ��������:�Ͼ�����
+                                    ;------------------------------------------------------
+                                    ;���룺
+                                    ;AH ���ܺ�= 0x06
+                                    ;AL = �Ͼ�������(���Ϊ0,��ʾȫ��)
+                                    ;BH = �Ͼ�������
+                                    ;(CL,CH) = �������Ͻǵ�(X,Y)λ��
+                                    ;(DL,DH) = �������½ǵ�(X,Y)λ��
+                                    ;�޷���ֵ��
+    mov ax, 0600h
+    mov bx, 0700h
+    mov cx, 0                       ; ���Ͻ�: (0, 0)
+    mov dx, 184fh		            ; ���½�: (80,25),
+				                    ; ��ΪVGA�ı�ģʽ�У�һ��ֻ������80���ַ�,��25�С�
+				                    ; �±��0��ʼ������0x18=24,0x4f=79
+    int 10h                         ; int 10h
 
-int 10h
-mov byte [gs:0x00],'1'
-mov byte [gs:0x01],0xA4  
+                                    ; ����ַ���:MBR
+    mov byte [gs:0x00],'1'
+    mov byte [gs:0x01],0xA4
 
-mov byte [gs:0x02],' '
-mov byte [gs:0x03],0xA4
+    mov byte [gs:0x02],' '
+    mov byte [gs:0x03],0xA4
 
-mov byte [gs:0x04],'M'
-mov byte [gs:0x05],0xA4
+    mov byte [gs:0x04],'M'
+    mov byte [gs:0x05],0xA4	        ;A��ʾ��ɫ������˸��4��ʾǰ��ɫΪ��ɫ
 
-mov byte [gs:0x06],'B'
-mov byte [gs:0x07],0xA4
+    mov byte [gs:0x06],'B'
+    mov byte [gs:0x07],0xA4
 
-mov byte [gs:0x08],'R'
-mov byte [gs:0x09],0xA4
+    mov byte [gs:0x08],'R'
+    mov byte [gs:0x09],0xA4
+	 
+    mov eax,LOADER_START_SECTOR	    ; ��ʼ����lba��ַ
+    mov bx,LOADER_BASE_ADDR         ; д��ĵ�ַ
+    mov cx,4			            ; �������������
+    call rd_disk_m_16		        ; ���¶�ȡ�������ʼ���֣�һ��������
+  
+    jmp LOADER_BASE_ADDR + 0x300
+       
+                                    ;-------------------------------------------------------------------------------
+                                    ;����:��ȡӲ��n������
+rd_disk_m_16:	   
+                                    ;-------------------------------------------------------------------------------
+				                    ; eax=LBA������
+				                    ; ebx=������д����ڴ��ַ
+				                    ; ecx=�����������
+    mov esi,eax	                    ;����eax
+    mov di,cx		                ;����cx
+                                    ;��дӲ��:
+                                    ;��1����ѡ���ض�ͨ���ļĴ���������Ҫ��ȡ��������
+    mov dx,0x1f2
+    mov al,cl
+    out dx,al                       ;��ȡ��������
 
-mov eax,LOADER_START_SECTOR         ;起始扇区lba地址
-mov bx,LOADER_BASE_ADDR             ;写入的地址
-mov cx,4                           ;待读入的扇区数
-call rd_disk_m_16                   ;以下读取程序的起始部分，call入栈指令地址
+    mov eax,esi	                    ;�ָ�ax
 
-jmp LOADER_BASE_ADDR + 0x300
+                                    ;��2�������ض�ͨ���Ĵ����з���Ҫ��ȡ�����ĵ�ַ����LBA��ַ����0x1f3 ~ 0x1f6
+                                    ;LBA��ַ7~0λд��˿�0x1f3
+    mov dx,0x1f3                       
+    out dx,al                          
 
-rd_disk_m_16:
+                                    ;LBA��ַ15~8λд��˿�0x1f4
+    mov cl,8
+    shr eax,cl
+    mov dx,0x1f4
+    out dx,al
 
-mov esi,eax                         ;备份数据
-mov di,cx
+                                    ;LBA��ַ23~16λд��˿�0x1f5
+    shr eax,cl
+    mov dx,0x1f5
+    out dx,al
 
-mov dx,0x1f2                        ;1.选择特定通道的寄存器
-mov al,cl                       
-out dx,al
+    shr eax,cl
+    and al,0x0f	                    ;lba��24~27λ
+    or al,0xe0	                    ; ����7��4λΪ1110,��ʾlbaģʽ
+    mov dx,0x1f6
+    out dx,al
 
-mov eax,esi             
+                                    ;��3������0x1f7�˿�д������0x20 
+    mov dx,0x1f7
+    mov al,0x20                        
+    out dx,al
 
-mov dx,0x1f3                         ;2.在特定通道寄存器中放入要读取的扇区地址
-out dx,al
+                                    ;��4�������Ӳ��״̬
+.not_ready:
+                                    ;ͬһ�˿ڣ�дʱ��ʾд�������֣���ʱ��ʾ����Ӳ��״̬
+    nop
+    in al,dx
+    and al,0x88	                    ;��4λΪ1��ʾӲ�̿�������׼�������ݴ��䣬��7λΪ1��ʾӲ��æ
+    cmp al,0x08
+    jnz .not_ready	                ;��δ׼���ã������ȡ�
 
-mov cl,8                            ;以下为将lba地址写入dx中的端口，每次写完并右移cx（8位）
-shr eax,cl
-mov dx,0x1f4
-out dx,al
+                                    ;��5������0x1f0�˿ڶ�����
+    mov ax, di                      ;di���д洢����Ҫ��ȡ��������
+    mov dx, 256                     ;ÿ������512�ֽڣ�һ�ζ�ȡ�����ֽڣ�����һ��������Ҫ��ȡ256�Σ�����������ˣ��͵ȵõ��ܶ�ȡ����
+    mul dx                          ;8λ�˷���16λ�˷�֪ʶ�鿴��p133,ע�⣺16λ�˷���ı�dx��ֵ��������
+    mov cx, ax	                    ; �õ���Ҫ��ȡ���ܴ�����Ȼ��������ַ���cx��
+    mov dx, 0x1f0
+.go_on_read:
+    in ax,dx
+    mov [bx],ax
+    add bx,2		  
+    loop .go_on_read
+    ret
 
-shr eax,cl
-mov dx,0x1f5
-out dx,al
-
-shr eax,cl
-and al,0x0f
-or al,0xe0
-mov dx,0x1f6
-out dx,al
-
-mov dx,0x1f7                            ;3.向0x1f7写入0x20命令
-mov al,0x20
-out dx,al
-
-not_ready:                              ;4.检查硬盘状态
-nop                                     ;空转
-in al,dx                                ;读取statu寄存器，判断硬盘状态，第四位为1表示准备好了，第七位为一表示忙
-and al,0x88
-cmp al,0x08
-jnz not_ready
-
-mov ax,di                               ;5.从0x1f0读数据
-mov dx,256                              ;di存储的是要读取的扇区数
-mul dx
-mov cx,ax
-
-mov dx,0x1f0
-go_on_read:
-in ax,dx
-mov [bx],ax
-add bx,2
-loop go_on_read
-ret
-
-times 510-($-$$) db 0
-db 0x55,0xaa
+    times 510-($-$$) db 0
+    db 0x55,0xaa
