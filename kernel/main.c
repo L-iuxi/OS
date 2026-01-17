@@ -1,4 +1,4 @@
-#include "../include/kernel/print.h"
+#include "../include/lib/print.h"
 #include "../include/kernel/init.h"
 #include "../include/kernel/debug.h"
 int main(void) {

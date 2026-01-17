@@ -1,6 +1,6 @@
-#include "../include/kernel/time.h"
+#include "../include/device/time.h"
 #include "../include/kernel/io.h"
-#include "../include/kernel/print.h"
+#include "../include/lib/print.h"
 
 #define IRQ0_FREQUENCY	    100    //定义我们想要的中断发生频率，100HZ                         
 #define INPUT_FREQUENCY	    1193180     //计数器0的工作脉冲信号评率

@@ -2,7 +2,7 @@
 #include "../include/stdint.h"
 #include "../include/kernel/global.h"
 #include "../include/kernel/io.h"
-#include "../include/kernel/print.h"
+#include "../include/lib/print.h"
 //里面封装了一系列与端口操作的函数
 
 #define PIC_M_CTRL 0x20	       // 这里用的可编程中断控制器是8259A,主片的控制端口是0x20

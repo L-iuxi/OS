@@ -1,6 +1,6 @@
 #include "../include/device/time.h"
 #include "../include/kernel/init.h"
-#include "../include/kernel/print.h"
+#include "../include/lib/print.h"
 #include "../include/kernel/interrupt.h"
 
 /*负责初始化所有模块 */
