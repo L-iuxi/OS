@@ -23,5 +23,9 @@
 #define IDT_DESC_16_TYPE    0x6 // 16 位的门,不会用到// 定义它只为和 32 位门区分
 #define IDT_DESC_ATTR_DPL0  ((IDT_DESC_P << 7) + (IDT_DESC_DPL0 << 5) + IDT_DESC_32_TYPE)
 #define IDT_DESC_ATTR_DPL3 ((IDT_DESC_P << 7) + (IDT_DESC_DPL3 << 5) + IDT_DESC_32_TYPE)
+#define NULL ((void*)0)
+#define bool int
+#define true 1
+#define false 0
 
 #endif
