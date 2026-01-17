@@ -1,4 +1,4 @@
-#include "../include/kernel/time.h"
+#include "../include/device/time.h"
 #include "../include/kernel/init.h"
 #include "../include/kernel/print.h"
 #include "../include/kernel/interrupt.h"
