@@ -7,7 +7,6 @@
 #include "../include/kernel/interrupt.h"
 #include "../include/lib/print.h"
 
-
 #define PG_SIZE 4096
 
 struct task_struct* main_thread;    // 主线程PCB
@@ -47,7 +46,7 @@ void thread_create(struct task_struct* pthread, thread_func function, void* func
    kthread_stack->eip = kernel_thread;      //我们将线程的栈顶指向这里，并ret，就能直接跳入线程启动器开始执行。
                                             //为什么这里我不能直接填传入进来的func，这也是函数地址啊，为什么还非要经过一个启动器呢？其实是可以不经过线程启动器的
 
-    //因为用不着，所以不用初始化这个返回地址kthread_stack->unused_retaddr = NULL;
+    //因为用不着，所以不用初始化这个返回地址kthread_stack->unused_retaddr
    kthread_stack->function = function;      //将线程启动器（thread_start）需要运行的函数地址放入线程栈中
    kthread_stack->func_arg = func_arg;      //将线程启动器（thread_start）需要运行的函数所需要的参数地址放入线程栈中
    kthread_stack->ebp = kthread_stack->ebx = kthread_stack->esi = kthread_stack->edi = 0;
@@ -129,6 +128,8 @@ void schedule() {
    thread_tag = list_pop(&thread_ready_list);   
    struct task_struct* next = elem2entry(struct task_struct, general_tag, thread_tag);
    next->status = TASK_RUNNING;
+   process_activate(next);
+    /* 核心修正：切换前更新 TSS.esp0 */
    switch_to(cur, next);   
 }
 
@@ -141,6 +142,8 @@ void thread_init(void) {
    make_main_thread();
    put_str("thread_init done\n");
 }
+
+
 //将当前正在运行的线程pcb中的状态字段设定为传入的status,一般用于线程主动设定阻塞
 void thread_block(enum task_status stat) {
 /* stat取值为TASK_BLOCKED,TASK_WAITING,TASK_HANGING,也就是只有这三种状态才不会被调度*/

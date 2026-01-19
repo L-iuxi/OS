@@ -8,7 +8,7 @@
 #define IRQ0_FREQUENCY	    100    //定义我们想要的中断发生频率，100HZ                         
 #define INPUT_FREQUENCY	    1193180     //计数器0的工作脉冲信号评率
 #define COUNTER0_VALUE	    INPUT_FREQUENCY / IRQ0_FREQUENCY
-#define COUNTER0_PORT	    0x40        //要写入初值的计数器端口号
+#define CONTRER0_PORT	    0x40        //要写入初值的计数器端口号
 #define COUNTER0_NO	        0   //要操作的计数器的号码
 #define COUNTER_MODE	    2   //用在控制字中设定工作模式的号码，这里表示比率发生器
 #define READ_WRITE_LATCH    3   //用在控制字中设定读/写/锁存操作位，这里表示先写入低字节，然后写入高字节
@@ -34,7 +34,6 @@ static void frequency_set(uint8_t counter_port, \
 
 /* 时钟的中断处理函数 */
 static void intr_timer_handler(void) {
-
    struct task_struct* cur_thread = running_thread();
 
    ASSERT(cur_thread->stack_magic == 0x19870916);         // 检查栈是否溢出
@@ -56,7 +55,7 @@ static void intr_timer_handler(void) {
 void timer_init() {
    put_str("timer_init start\n");
    /* 设置8253的定时周期,也就是发中断的周期 */
-   frequency_set(COUNTER0_PORT, COUNTER0_NO, READ_WRITE_LATCH, COUNTER_MODE, COUNTER0_VALUE);
+   frequency_set(CONTRER0_PORT, COUNTER0_NO, READ_WRITE_LATCH, COUNTER_MODE, COUNTER0_VALUE);
    register_handler(0x20, intr_timer_handler);
    put_str("timer_init done\n");
 }
