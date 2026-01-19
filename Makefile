@@ -21,7 +21,9 @@ $(BUILD_DIR)/string.o \
 $(BUILD_DIR)/memory.o \
 $(BUILD_DIR)/thread.o \
 $(BUILD_DIR)/list.o \
-$(BUILD_DIR)/switch.o
+$(BUILD_DIR)/switch.o \
+$(BUILD_DIR)/console.o \
+$(BUILD_DIR)/sync.o
 
 
 .PHONY: all mk_dir build clean
@@ -51,6 +53,10 @@ $(BUILD_DIR)/memory.o:kernel/memory.c include/lib/string.h
 $(BUILD_DIR)/thread.o:thread/thread.c include/thread/thread.h
 	$(CC) $(CFLAGS) -o $@ $<
 $(BUILD_DIR)/list.o:kernel/list.c include/kernel/list.h
+	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD_DIR)/console.o:device/console.c include/device/console.h
+	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD_DIR)/sync.o:thread/sync.c include/thread/sync.h
 	$(CC) $(CFLAGS) -o $@ $<
 # 汇编文件编译
 $(BUILD_DIR)/kernel.o: kernel/kernel.asm
