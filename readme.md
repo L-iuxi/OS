@@ -74,21 +74,59 @@
 
 ```
 OS/
-├── boot/                # MBR 与 Loader
-├── kernel/              # 内核核心代码（中断、内存、调度等）
-├── device/              # 设备驱动（时钟、键盘、控制台）
-├── thread/              # 线程、同步原语、上下文切换
-├── userprog/            # 用户进程相关（TSS / process）
-├── lib/                 # 内核基础库（string / bitmap / print）
-├── include/             # 各模块头文件
-│   ├── kernel/
-│   ├── device/
-│   ├── thread/
-│   ├── userprog/
-│   └── lib/
-├── note/                # 学习与实现笔记
-├── Makefile             # 构建脚本
-└── build/               # 编译生成目录（不提交）
+├── boot/                    # 启动相关（MBR + Loader）
+│   ├── mbr
+│   └── loader
+│
+├── kernel/                  # 内核核心模块（Ring0）
+│   ├── main.c               # 内核入口
+│   ├── init.c               # 内核初始化
+│   ├── interrupt.c          # 中断管理
+│   ├── memory.c             # 内存管理
+│   ├── list.c               # 内核链表
+│   ├── debug.c              # 调试与断言
+│   └── kernel.asm           # 中断入口 / 汇编支持
+│
+├── device/                  # 设备驱动
+│   ├── time.c               # 时钟中断
+│   ├── keyboard.c           # 键盘驱动
+│   ├── console.c            # 控制台输出
+│   └── ioqueue.c            # IO 队列（键盘缓冲区）
+│
+├── thread/                  # 线程与同步机制（内核态）
+│   ├── thread.c             # 线程管理与调度
+│   ├── sync.c               # 锁 / 信号量
+│   └── switch.asm           # 上下文切换
+│
+├── userprog/                # 用户进程支持（内核侧）
+│   ├── process.c            # 用户进程创建与切换
+│   ├── tss.c                # TSS 初始化
+│   └── syscall-init.c       # 系统调用初始化
+│
+├── lib/                     # 基础库
+│   ├── bitmap.c             # 位图
+│   ├── string.c             # 字符串操作
+│   ├── print.asm            # 内核打印
+│   └── user/                # 用户态库
+│       ├── syscall.c        # 系统调用封装
+│       └── stdio.c          # 用户态 printf 等
+│
+├── include/                 # 头文件
+│   ├── kernel/              # 内核头文件
+│   ├── device/              # 设备相关头文件
+│   ├── thread/              # 线程与同步
+│   ├── userprog/            # 用户进程 / TSS / syscall
+│   ├── user/                # 用户态接口（syscall / stdio）
+│   └── lib/                 # 基础库头文件
+│
+├── note/                    # 学习与实现笔记
+│
+├── build/                   # 编译产物
+│ 
+│
+├── Makefile
+└── README.md
+
 ```
 
 ---
