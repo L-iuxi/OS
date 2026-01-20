@@ -3,7 +3,7 @@ ENTRY_POINT = 0xc0001500
 AS = nasm
 CC = gcc -m32
 LD = ld -m elf_i386
-LIB = -I include/kernel/ -I include/userprog/ -I include/lib/ -I kernel/ -I device/ -I include/device -I include/thread
+LIB = -I include/kernel/ -I include/user/ -I lib/user/ -I include/userprog/ -I include/lib/ -I kernel/ -I device/ -I include/device -I include/thread
 ASFLAGS = -f elf
 CFLAGS = -m32 -Wall -fno-builtin -fno-stack-protector -W -Wstrict-prototypes -Wmissing-prototypes $(LIB) -c
 LDFLAGS = -Ttext $(ENTRY_POINT) -e main -Map $(BUILD_DIR)/kernel.map
@@ -27,7 +27,10 @@ $(BUILD_DIR)/sync.o \
 $(BUILD_DIR)/keyboard.o \
 $(BUILD_DIR)/ioqueue.o \
 $(BUILD_DIR)/tss.o \
-$(BUILD_DIR)/process.o
+$(BUILD_DIR)/process.o \
+$(BUILD_DIR)/syscall.o \
+$(BUILD_DIR)/syscall-init.o \
+$(BUILD_DIR)/stdio.o
 
 
 .PHONY: all mk_dir build clean
@@ -69,6 +72,12 @@ $(BUILD_DIR)/ioqueue.o:device/ioqueue.c include/device/ioqueue.h
 $(BUILD_DIR)/tss.o:userprog/tss.c
 	$(CC) $(CFLAGS) -o $@ $<
 $(BUILD_DIR)/process.o:userprog/process.c
+	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD_DIR)/syscall.o:lib/user/syscall.c
+	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD_DIR)/syscall-init.o:userprog/syscall-init.c
+	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD_DIR)/stdio.o:lib/user/stdio.c
 	$(CC) $(CFLAGS) -o $@ $<
 # 汇编文件编译
 $(BUILD_DIR)/kernel.o: kernel/kernel.asm
