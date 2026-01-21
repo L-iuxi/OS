@@ -1,6 +1,6 @@
 #ifndef __THREAD_THREAD_H
 #define __THREAD_THREAD_H
-#include "stdint.h"
+#include "../stdint.h"
 #include "../kernel/list.h"
 #include "../kernel/memory.h"
 

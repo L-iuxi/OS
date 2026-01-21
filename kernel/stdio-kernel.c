@@ -1,5 +1,5 @@
 #include "../include/kernel/stdio-kernel.h"
-#include "../include/stdio.h"
+#include "../include/user/stdio.h"
 #include "../include/device/console.h"
 #include "../include/kernel/global.h"
 

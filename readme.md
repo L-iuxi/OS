@@ -1,11 +1,14 @@
 # OS
+
 ## 项目简介
 
-这是一个从零开始实现的 **x86 架构、32 位保护模式下的简易操作系统内核**，主要参考《操作系统真相还原》一书完成，目标是通过“自己动手实现”的方式，深入理解操作系统的核心机制，而非追求功能完备或生产可用。
+这是一个从零开始实现的 **x86 架构、32 位保护模式下的简易操作系统内核**，主要参考《操作系统真相还原》一书完成，目标是通过“自己动手实现”的方式，深入理解操作系统的核心机制。
 
-当前系统已完成从 **引导 → 内核初始化 → 中断管理 → 线程调度 → 用户进程切换** 的完整闭环，操作系统已经具备“多执行流 + 特权级隔离”的基本形态。
+当前系统已完成从  
+**引导 → 内核初始化 → 中断管理 → 内存管理 → 线程调度 → 用户进程切换 → 硬盘访问**  
+的完整执行链路。
 
-⚠️ 本项目 **仍在持续开发中**，文件系统、硬盘驱动与 Shell 尚未完成。
+⚠️ 本项目 **仍在持续开发中**，文件系统与 Shell 尚未完成。
 
 ---
 
@@ -59,139 +62,90 @@
 * 用户进程独立栈
 * 用户进程参与调度
 
+### 硬盘驱动（IDE）
+
+* ATA PIO 模式硬盘驱动
+* 硬盘初始化与识别
+* 扇区级读写接口
+* 同步阻塞式访问
+* 作为文件系统的底层存储抽象
+
 ---
 
 ## 正在开发 / 未完成部分
 
-* 硬盘驱动（IDE）
 * 文件系统
 * Shell（用户交互接口）
 * 用户程序加载（ELF / 文件形式）
 
 ---
 
-## 项目目录结构
-
+## 项目架构
 ```
 OS/
-├── boot/                    # 启动相关（MBR + Loader）
-│   ├── mbr
-│   └── loader
+├── boot/ # 启动相关（MBR + Loader）
+│ ├── mbr
+│ └── loader
 │
-├── kernel/                  # 内核核心模块（Ring0）
-│   ├── main.c               # 内核入口
-│   ├── init.c               # 内核初始化
-│   ├── interrupt.c          # 中断管理
-│   ├── memory.c             # 内存管理
-│   ├── list.c               # 内核链表
-│   ├── debug.c              # 调试与断言
-│   └── kernel.asm           # 中断入口 / 汇编支持
+├── kernel/ # 内核核心模块（Ring0）
+│ ├── main.c # 内核入口
+│ ├── init.c # 内核初始化
+│ ├── interrupt.c # 中断管理
+│ ├── memory.c # 内存管理
+│ ├── list.c # 内核链表
+│ ├── debug.c # 调试与断言
+│ └── kernel.asm # 中断入口 / 汇编支持
 │
-├── device/                  # 设备驱动
-│   ├── time.c               # 时钟中断
-│   ├── keyboard.c           # 键盘驱动
-│   ├── console.c            # 控制台输出
-│   └── ioqueue.c            # IO 队列（键盘缓冲区）
+├── device/ # 设备驱动
+│ ├── time.c # 时钟中断
+│ ├── keyboard.c # 键盘驱动
+│ ├── console.c # 控制台输出
+│ ├── ioqueue.c # IO 队列
+│ └── ide.c # 硬盘驱动（IDE）
 │
-├── thread/                  # 线程与同步机制（内核态）
-│   ├── thread.c             # 线程管理与调度
-│   ├── sync.c               # 锁 / 信号量
-│   └── switch.asm           # 上下文切换
+├── thread/ # 线程与同步机制（内核态）
+│ ├── thread.c # 线程管理与调度
+│ ├── sync.c # 锁 / 信号量
+│ └── switch.asm # 上下文切换
 │
-├── userprog/                # 用户进程支持（内核侧）
-│   ├── process.c            # 用户进程创建与切换
-│   ├── tss.c                # TSS 初始化
-│   └── syscall-init.c       # 系统调用初始化
+├── userprog/ # 用户进程支持（内核侧）
+│ ├── process.c # 用户进程创建与切换
+│ ├── tss.c # TSS 初始化
+│ └── syscall-init.c # 系统调用初始化
 │
-├── lib/                     # 基础库
-│   ├── bitmap.c             # 位图
-│   ├── string.c             # 字符串操作
-│   ├── print.asm            # 内核打印
-│   └── user/                # 用户态库
-│       ├── syscall.c        # 系统调用封装
-│       └── stdio.c          # 用户态 printf 等
+├── lib/ # 基础库
+│ ├── bitmap.c # 位图
+│ ├── string.c # 字符串操作
+│ ├── print.asm # 内核打印
+│ └── user/ # 用户态库
+│ ├── syscall.c # 系统调用封装
+│ └── stdio.c # 用户态 printf 等
 │
-├── include/                 # 头文件
-│   ├── kernel/              # 内核头文件
-│   ├── device/              # 设备相关头文件
-│   ├── thread/              # 线程与同步
-│   ├── userprog/            # 用户进程 / TSS / syscall
-│   ├── user/                # 用户态接口（syscall / stdio）
-│   └── lib/                 # 基础库头文件
+├── include/ # 头文件
+│ ├── kernel/
+│ ├── device/
+│ ├── thread/
+│ ├── userprog/
+│ ├── user/
+│ └── lib/
 │
-├── note/                    # 学习与实现笔记
-│
-├── build/                   # 编译产物
-│ 
+├── note/ # 学习与实现笔记
+├── build/ # 编译产物
 │
 ├── Makefile
 └── README.md
-
 ```
 
 ---
-
-## 构建与运行环境
-
-### 1. 推荐环境
-
-* Linux（Ubuntu 20.04+ / Arch Linux）
-* x86_64 主机
-
-### 2. 使用 Docker（推荐）
-
-避免宿主机 32 位工具链问题，可使用 Docker 构建环境：
-
-* gcc (支持 -m32)
-* nasm
-* ld (elf_i386)
-* make
-
-> 项目在 Docker 容器内完成编译，Bochs 在宿主机运行。
-
-### 3. 依赖工具
-
-* gcc (支持 32 位编译)
-* nasm
-* binutils (ld)
-* make
-* bochs
-
----
-
-## 编译方式
-
-```bash
-make        # 构建内核
-make clean  # 清理 build 目录
-```
-
-生成文件：
-
-```
-build/kernel.bin
-```
-
----
-
-## 运行方式（Bochs）
-
-1. 配置 bochsrc，将 kernel.bin 写入虚拟硬盘
-2. 启动 Bochs
-3. 内核启动后可看到：
-   * 中断初始化信息
-   * 键盘初始化完成
-   * 用户进程切换相关输出
-
 
 ## 当前状态
 
 🚧 **开发中（Under Construction）**
 
-后续将继续实现：
+下一阶段计划：
 
-* 文件系统
-* Shell
+* 基于 IDE 驱动实现文件系统
+* 构建 Shell，实现用户态交互
+
 ---
-
 

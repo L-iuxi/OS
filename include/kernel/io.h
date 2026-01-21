@@ -1,6 +1,6 @@
 #ifndef __LIB_IO_H
 #define __LIB_IO_H
-#include "stdint.h"
+#include "../stdint.h"
 
  //一次送一字节的数据到指定端口，static指定只在本.h内有效，inline是让处理器将函数编译成内嵌的方式，就是在该函数调用处原封不动地展开
  //此函数有两个参数，一个端口号，一个要送往端口的数据
