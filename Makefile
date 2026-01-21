@@ -3,7 +3,7 @@ ENTRY_POINT = 0xc0001500
 AS = nasm
 CC = gcc -m32
 LD = ld -m elf_i386
-LIB = -I include/kernel/ -I include/user/ -I lib/user/ -I include/userprog/ -I include/lib/ -I kernel/ -I device/ -I include/device -I include/thread
+LIB = -I include/kernel/ -I fs/ -I include/fs/ -I include/user/ -I lib/user/ -I include/userprog/ -I include/lib/ -I kernel/ -I device/ -I include/device -I include/thread
 ASFLAGS = -f elf
 CFLAGS = -m32 -Wall -fno-builtin -fno-stack-protector -W -Wstrict-prototypes -Wmissing-prototypes $(LIB) -c
 LDFLAGS = -Ttext $(ENTRY_POINT) -e main -Map $(BUILD_DIR)/kernel.map
@@ -32,7 +32,11 @@ $(BUILD_DIR)/syscall.o \
 $(BUILD_DIR)/syscall-init.o \
 $(BUILD_DIR)/stdio.o \
 $(BUILD_DIR)/stdio-kernel.o \
-$(BUILD_DIR)/ide.o  
+$(BUILD_DIR)/ide.o \ 
+$(BUILD_DIR)/fs.o \
+$(BUILD_DIR)/inode.o \
+$(BUILD_DIR)/file.o \
+$(BUILD_DIR)/dir.o 
 
 
 .PHONY: all mk_dir build clean
@@ -85,6 +89,14 @@ $(BUILD_DIR)/stdio-kernel.o:kernel/stdio-kernel.c
 	$(CC) $(CFLAGS) -o $@ $<
 $(BUILD_DIR)/ide.o:device/ide.c
 	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD_DIR)/fs.o:fs/fs.c
+	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD_DIR)/inode.o:fs/inode.c
+	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD_DIR)/file.o:fs/file.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+$(BUILD_DIR)/dir.o:fs/dir.c
 # 汇编文件编译
 $(BUILD_DIR)/kernel.o: kernel/kernel.asm
 	$(AS) $(ASFLAGS) $< -o $@
