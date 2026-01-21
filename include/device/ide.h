@@ -1,6 +1,6 @@
 #ifndef __DEVICE_IDE_H
 #define __DEVICE_IDE_H
-#include "stdint.h"
+#include "../stdint.h"
 #include "../thread/sync.h"
 #include "../lib/bitmap.h"
 
@@ -40,6 +40,7 @@ struct ide_channel {
 void ide_init(void);
 extern uint8_t channel_cnt;
 extern struct ide_channel channels[];
+extern struct list partition_list;
 void ide_read(struct disk* hd, uint32_t lba, void* buf, uint32_t sec_cnt);
 void ide_write(struct disk* hd, uint32_t lba, void* buf, uint32_t sec_cnt);
 void intr_hd_handler(uint8_t irq_no);
