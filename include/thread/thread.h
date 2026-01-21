@@ -3,7 +3,8 @@
 #include "stdint.h"
 #include "../kernel/list.h"
 #include "../kernel/memory.h"
-typedef uint16_t pid_t;
+
+   typedef uint16_t pid_t;
                                 //定义一种叫thread_fun的函数类型，该类型返回值是空，参数是一个地址(这个地址用来指向自己的参数)。
                                 //这样定义，这个类型就能够具有很大的通用性，很多函数都是这个类型
 typedef void thread_func(void*);
@@ -100,4 +101,5 @@ void schedule(void);
 void thread_init(void);
 void thread_block(enum task_status stat);
 void thread_unblock(struct task_struct* pthread);
+void thread_yield(void);
 #endif

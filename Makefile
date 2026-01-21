@@ -30,7 +30,9 @@ $(BUILD_DIR)/tss.o \
 $(BUILD_DIR)/process.o \
 $(BUILD_DIR)/syscall.o \
 $(BUILD_DIR)/syscall-init.o \
-$(BUILD_DIR)/stdio.o
+$(BUILD_DIR)/stdio.o \
+$(BUILD_DIR)/stdio-kernel.o \
+$(BUILD_DIR)/ide.o  
 
 
 .PHONY: all mk_dir build clean
@@ -78,6 +80,10 @@ $(BUILD_DIR)/syscall.o:lib/user/syscall.c
 $(BUILD_DIR)/syscall-init.o:userprog/syscall-init.c
 	$(CC) $(CFLAGS) -o $@ $<
 $(BUILD_DIR)/stdio.o:lib/user/stdio.c
+	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD_DIR)/stdio-kernel.o:kernel/stdio-kernel.c
+	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD_DIR)/ide.o:device/ide.c
 	$(CC) $(CFLAGS) -o $@ $<
 # 汇编文件编译
 $(BUILD_DIR)/kernel.o: kernel/kernel.asm

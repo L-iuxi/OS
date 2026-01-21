@@ -8,6 +8,7 @@
 #include "../include/device/keyboard.h"
 #include "../include/userprog/tss.h"
 #include "../include/userprog/syscall-init.h"
+#include "../include/device/ide.h"
 
 /*负责初始化所有模块 */
 void init_all() {
@@ -20,4 +21,5 @@ void init_all() {
    keyboard_init();  // 键盘初始化
    tss_init();       // tss初始化
    syscall_init();   // 初始化系统调用
+   ide_init();	     // 初始化硬盘
 }
