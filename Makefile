@@ -1,5 +1,6 @@
 BUILD_DIR = ./build
 ENTRY_POINT = 0xc0001500
+HD60M_PATH=/home/xfdhm/bochs/hd60M.img
 AS = nasm
 CC = gcc -m32
 LD = ld -m elf_i386
@@ -45,13 +46,6 @@ $(BUILD_DIR)/assert.o \
 $(BUILD_DIR)/wait_exit.o \
 $(BUILD_DIR)/pipe.o  
 
-
-.PHONY: all mk_dir build clean
-
-all: mk_dir build
-
-mk_dir:
-	if [ ! -d $(BUILD_DIR) ]; then mkdir -p $(BUILD_DIR); fi
 
 # C 文件编译
 $(BUILD_DIR)/main.o: kernel/main.c include/lib/print.h include/kernel/init.h
@@ -128,8 +122,28 @@ $(BUILD_DIR)/switch.o:thread/switch.asm
 # 链接生成 kernel.bin
 $(BUILD_DIR)/kernel.bin: $(OBJS)
 	$(LD) $(LDFLAGS) $^ -o $@
+# $^表示规则中所有依赖文件的集合，如果有重复，会自动去重
 
-build: $(BUILD_DIR)/kernel.bin
+.PHONY:mk_dir hd clean build all boot gdb_symbol	#定义了7个伪目标
+mk_dir:
+	if [ ! -d $(BUILD_DIR) ];then mkdir $(BUILD_DIR);fi 
+#判断build文件夹是否存在，如果不存在，则创建
 
+hd:
+	dd if=build/mbr.o of=$(HD60M_PATH) count=1 bs=512 conv=notrunc && \
+	dd if=build/loader.o of=$(HD60M_PATH) count=4 bs=512 seek=2 conv=notrunc && \
+	dd if=$(BUILD_DIR)/kernel.bin of=$(HD60M_PATH) bs=512 count=200 seek=9 conv=notrunc
+	
 clean:
-	rm -rf $(BUILD_DIR)
+	@cd $(BUILD_DIR) && rm -f ./* && echo "remove ./build all done"
+#-f, --force忽略不存在的文件，从不给出提示，执行make clean就会删除build下所有文件
+
+build:$(BUILD_DIR)/kernel.bin
+#执行build需要依赖kernel.bin，但是一开始没有，就会递归执行之前写好的语句编译kernel.bin
+
+#生成可以被GDB理解的符号表，用于GDB调试
+gdb_symbol:
+	objcopy --only-keep-debug $(BUILD_DIR)/kernel.bin $(BUILD_DIR)/kernel.sym
+
+all:mk_dir boot build hd gdb_symbol
+#make all 就是依次执行mk_dir build hd gdb_symbol
