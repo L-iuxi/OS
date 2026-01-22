@@ -7,7 +7,6 @@
 #include "../include/thread/thread.h"
 #include "../include/kernel/interrupt.h"
 
-
 #define PG_SIZE 4096               // 一页的大小
 #define MEM_BITMAP_BASE 0xc009a000 // 这个地址是位图的起始地址，1MB内存布局中，9FBFF是最大一段可用区域的边界，而我们计划这个可用空间最后的位置将来用来
 // 放PCB，而PCB占用内存是一个自然页，所以起始地址必须是0xxxx000这种形式，离0x9fbff最近的符合这个形式的地址是0x9f000。我们又为了将来可能的拓展，
