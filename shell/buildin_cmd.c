@@ -1,6 +1,6 @@
-#include "../include/shell/buildin_cmd.c"
+#include "../include/shell/buildin_cmd.h"
 // #include "debug.h"
-#include "assert.h"
+#include "../include/user/assert.h"
 #include "../include/fs/dir.h"
 #include "../include/lib/string.h"
 #include "../include/fs/fs.h"
