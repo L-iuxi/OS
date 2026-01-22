@@ -8,9 +8,9 @@
 #include "../include/kernel/memory.h"
 #include "../include/fs/fs.h"
 #include "../include/userprog/fork.h"
-#include "exec.h"
-#include "wait_exit.h"
-#include "pipe.h"
+#include "../include/userprog/exec.h"
+#include "../include/userprog/wait_exit.h"
+#include "../include/shell/pipe.h"
 
 #define syscall_nr 32
 typedef void *syscall;

@@ -2,9 +2,9 @@
 #include "../include/user/stdio.h"
 #include "../include/fs/file.h"
 // #include "debug.h"
-#include "assert.h"
+#include "../include/user/assert.h"
 #include "../include/lib/string.h"
-#include "buildin_cmd.h"
+#include "../include/shell/buildin_cmd.h"
 #include "../include/user/syscall.h"
 
 char cwd_cache[64] = {0};

@@ -3,7 +3,7 @@ ENTRY_POINT = 0xc0001500
 AS = nasm
 CC = gcc -m32
 LD = ld -m elf_i386
-LIB = -I include/kernel/ -I fs/ -I include/fs/ -I shell/ -I include/user/ -I lib/user/ -I include/userprog/ -I include/lib/ -I kernel/ -I device/ -I include/device -I include/thread
+LIB = -I include/kernel/ -I fs/ -I include/fs/ -I command/ -I shell/ -I include/user/ -I lib/user/ -I include/userprog/ -I include/lib/ -I kernel/ -I device/ -I include/device -I include/thread -I include/shell
 ASFLAGS = -f elf
 CFLAGS = -m32 -Wall -fno-builtin -fno-stack-protector -W -Wstrict-prototypes -Wmissing-prototypes $(LIB) -c
 LDFLAGS = -Ttext $(ENTRY_POINT) -e main -Map $(BUILD_DIR)/kernel.map
@@ -36,7 +36,14 @@ $(BUILD_DIR)/ide.o \
 $(BUILD_DIR)/fs.o \
 $(BUILD_DIR)/inode.o \
 $(BUILD_DIR)/file.o \
-$(BUILD_DIR)/dir.o 
+$(BUILD_DIR)/dir.o \
+$(BUILD_DIR)/fork.o	\
+$(BUILD_DIR)/shell.o \
+$(BUILD_DIR)/buildin_cmd.o \
+$(BUILD_DIR)/exec.o \
+$(BUILD_DIR)/assert.o \
+$(BUILD_DIR)/wait_exit.o \
+$(BUILD_DIR)/pipe.o  
 
 
 .PHONY: all mk_dir build clean
@@ -96,6 +103,20 @@ $(BUILD_DIR)/inode.o:fs/inode.c
 $(BUILD_DIR)/file.o:fs/file.c
 	$(CC) $(CFLAGS) -o $@ $<
 $(BUILD_DIR)/dir.o:fs/dir.c
+	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD_DIR)/fork.o:userprog/fork.c
+	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD_DIR)/shell.o:shell/shell.c
+	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD_DIR)/buildin_cmd.o:shell/buildin_cmd.c
+	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD_DIR)/exec.o:userprog/exec.c
+	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD_DIR)/assert.o:lib/user/assert.c
+	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD_DIR)/wait_exit.o:userprog/wait_exit.c
+	$(CC) $(CFLAGS) -o $@ $<
+$(BUILD_DIR)/pipe.o:shell/pipe.c
 	$(CC) $(CFLAGS) -o $@ $<
 # 汇编文件编译
 $(BUILD_DIR)/kernel.o: kernel/kernel.asm

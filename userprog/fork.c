@@ -7,7 +7,7 @@
 #include "../include/userprog/process.h"
 #include "../include/fs/file.h"
 #include "../include/kernel/interrupt.h"
-#include "pipe.h"
+#include "../include/shell/pipe.h"
 
 /* 将父进程的pcb、虚拟地址位图拷贝给子进程 */
 static int32_t copy_pcb_vaddrbitmap_stack0(struct task_struct *child_thread, struct task_struct *parent_thread)
