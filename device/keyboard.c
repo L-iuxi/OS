@@ -5,7 +5,6 @@
 #include "../include/kernel/global.h"
 #include "../include/device/ioqueue.h"
 
-
 #define KBD_BUF_PORT 0x60   //键盘buffer寄存器端口号为0x60
 
 #define esc '\033'		    //esc 和 delete都没有\转义字符这种形式，用8进制代替
@@ -193,7 +192,6 @@ static void intr_keyboard_handler(void)
 	            cur_char -= 'a';
 	        }
             if (!ioq_full(&kbd_buf)) {
-                put_char(cur_char);	    // 临时的
                 ioq_putchar(&kbd_buf, cur_char);
             }
 	        return;
